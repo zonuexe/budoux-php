@@ -21,7 +21,7 @@ final class File extends Parser
 
     protected function getTotalScore(): int
     {
-        return (int) array_sum(array_map(array_sum(...), $this->model));
+        return array_sum(array_map(array_sum(...), $this->model));
     }
 
     protected function getScore(string $featureKey, string $sequence): int
