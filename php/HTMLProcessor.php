@@ -104,10 +104,10 @@ final class HTMLProcessor
     {
         self::assertDomExtension();
         $body = self::parseBodyFragment($html);
-        $output = '';
-        self::textize($body, $output);
+        $extractor = new TextContentExtractor();
+        self::textize($body, $extractor);
 
-        return $output;
+        return $extractor->output;
     }
 
     /**
@@ -119,23 +119,13 @@ final class HTMLProcessor
     {
         self::assertDomExtension();
         $body = self::parseBodyFragment($html);
-        $phrasesJoinedChars = mb_str_split(implode(self::SEP, $phrases), 1, 'UTF-8');
-        $output = '';
-        $scanIndex = 0;
-        $toSkip = false;
-        $elementStack = [];
-
-        self::resolveChildren(
-            $body,
-            $phrasesJoinedChars,
+        $state = new PhraseResolvingState(
+            mb_str_split(implode(self::SEP, $phrases), 1, 'UTF-8'),
             $separator,
-            $output,
-            $scanIndex,
-            $toSkip,
-            $elementStack,
         );
+        self::resolveChildren($body, $state);
 
-        return sprintf('<span style="%s">%s</span>', self::STYLE, $output);
+        return sprintf('<span style="%s">%s</span>', self::STYLE, $state->output);
     }
 
     private static function assertDomExtension(): void
@@ -165,104 +155,66 @@ final class HTMLProcessor
         return $body;
     }
 
-    private static function textize(DOMNode $node, string &$output): void
+    private static function textize(DOMNode $node, TextContentExtractor $extractor): void
     {
         if ($node instanceof DOMElement) {
             if ($node->nodeName === 'br') {
-                $output .= "\n";
+                $extractor->output .= "\n";
             }
             foreach ($node->childNodes as $child) {
-                self::textize($child, $output);
+                self::textize($child, $extractor);
             }
 
             return;
         }
 
         if ($node instanceof DOMText) {
-            $output .= $node->wholeText;
+            $extractor->output .= $node->wholeText;
         }
     }
 
-    /**
-     * @param list<string> $phrasesJoinedChars
-     * @param list<bool> $elementStack
-     */
-    private static function resolveChildren(
-        DOMNode $parent,
-        array $phrasesJoinedChars,
-        string $separator,
-        string &$output,
-        int &$scanIndex,
-        bool &$toSkip,
-        array &$elementStack,
-    ): void {
+    private static function resolveChildren(DOMNode $parent, PhraseResolvingState $state): void
+    {
         foreach ($parent->childNodes as $child) {
-            self::resolveNode(
-                $child,
-                $phrasesJoinedChars,
-                $separator,
-                $output,
-                $scanIndex,
-                $toSkip,
-                $elementStack,
-            );
+            self::resolveNode($child, $state);
         }
     }
 
-    /**
-     * @param list<string> $phrasesJoinedChars
-     * @param list<bool> $elementStack
-     */
-    private static function resolveNode(
-        DOMNode $node,
-        array $phrasesJoinedChars,
-        string $separator,
-        string &$output,
-        int &$scanIndex,
-        bool &$toSkip,
-        array &$elementStack,
-    ): void {
+    private static function resolveNode(DOMNode $node, PhraseResolvingState $state): void
+    {
         if ($node instanceof DOMComment) {
             return;
         }
 
         if ($node instanceof DOMElement) {
-            $elementStack[] = $toSkip;
+            $state->elementStack[] = $state->toSkip;
             $attributesEncoded = self::encodeAttributes($node);
             $nodeName = $node->nodeName;
-            $phrasesJoinedLength = count($phrasesJoinedChars);
+            $phrasesJoinedLength = count($state->phrasesJoinedChars);
 
             if ($nodeName === 'br') {
                 // `<br>` is converted to `\n` in getText(); advance past that char.
-                $scanIndex++;
+                $state->scanIndex++;
             } elseif (in_array(strtoupper($nodeName), self::SKIP_NODES, true)) {
                 if (
-                    !$toSkip
-                    && $scanIndex < $phrasesJoinedLength
-                    && $phrasesJoinedChars[$scanIndex] === self::SEP
+                    !$state->toSkip
+                    && $state->scanIndex < $phrasesJoinedLength
+                    && $state->phrasesJoinedChars[$state->scanIndex] === self::SEP
                 ) {
-                    $output .= $separator;
-                    $scanIndex++;
+                    $state->output .= $state->separator;
+                    $state->scanIndex++;
                 }
-                $toSkip = true;
+                $state->toSkip = true;
             }
 
-            $output .= sprintf('<%s%s>', $nodeName, $attributesEncoded);
+            $state->output .= sprintf('<%s%s>', $nodeName, $attributesEncoded);
 
-            self::resolveChildren(
-                $node,
-                $phrasesJoinedChars,
-                $separator,
-                $output,
-                $scanIndex,
-                $toSkip,
-                $elementStack,
-            );
+            self::resolveChildren($node, $state);
 
-            $toSkip = array_pop($elementStack) ?? false;
+            $state->toSkip = array_pop($state->elementStack) ?? false;
 
             if (!isset(self::VOID_ELEMENTS[$nodeName])) {
-                $output .= sprintf('</%s>', $nodeName);
+                $state->output .= sprintf('</%s>', $nodeName);
             }
 
             return;
@@ -270,18 +222,18 @@ final class HTMLProcessor
 
         if ($node instanceof DOMText) {
             foreach (mb_str_split($node->wholeText, 1, 'UTF-8') as $c) {
-                $joinedChar = $phrasesJoinedChars[$scanIndex] ?? '';
+                $joinedChar = $state->phrasesJoinedChars[$state->scanIndex] ?? '';
                 if ($c !== $joinedChar) {
                     // Assume phrasesJoined[scanIndex] == SEP.
-                    $prevWasWhitespace = $scanIndex > 0
-                        && self::isWhitespace($phrasesJoinedChars[$scanIndex - 1]);
-                    if (!$toSkip && !self::isWhitespace($c) && !$prevWasWhitespace) {
-                        $output .= $separator;
+                    $prevWasWhitespace = $state->scanIndex > 0
+                        && self::isWhitespace($state->phrasesJoinedChars[$state->scanIndex - 1]);
+                    if (!$state->toSkip && !self::isWhitespace($c) && !$prevWasWhitespace) {
+                        $state->output .= $state->separator;
                     }
-                    $scanIndex++;
+                    $state->scanIndex++;
                 }
-                $scanIndex++;
-                $output .= $c;
+                $state->scanIndex++;
+                $state->output .= $c;
             }
         }
     }
