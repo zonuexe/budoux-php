@@ -48,4 +48,10 @@ class ParserTest extends TestCase
 
         $this->assertEquals($expected, $actual);
     }
+
+    public function testNewline(): void
+    {
+        $parser = Parser::loadDefaultJapaneseParser();
+        $this->assertSame([" 1  \n  2 "], $parser->parse(" 1  \n  2 "));
+    }
 }
