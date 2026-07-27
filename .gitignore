@@ -30,5 +30,4 @@ weights.txt
 
 # PHP related files
 .phpunit.cache/
-composer.lock
 vendor/
