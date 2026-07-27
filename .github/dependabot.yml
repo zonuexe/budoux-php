@@ -5,27 +5,55 @@
 
 version: 2
 updates:
+  # Python/pip updates
   - package-ecosystem: pip
     directory: /
     schedule:
-      interval: daily
+      interval: weekly
+    groups:
+      patch:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
 
+  # GitHub Actions updates
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: daily
+      interval: weekly
+    groups:
+      codeql:
+        patterns:
+          - "github/codeql-action*"
+      patch:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
 
+  # JavaScript/npm updates
   - package-ecosystem: npm
-    directory: /demo
+    directories:
+      - /javascript
+      - /demo
     schedule:
-      interval: daily
+      interval: weekly
+    groups:
+      patch:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
 
-  - package-ecosystem: npm
-    directory: /javascript
-    schedule:
-      interval: daily
-
+  # Java/Maven updates
   - package-ecosystem: maven
     directory: /java
     schedule:
-      interval: daily
+      interval: weekly
+    groups:
+      patch:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"

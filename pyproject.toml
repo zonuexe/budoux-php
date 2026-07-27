@@ -1,3 +1,73 @@
 [build-system]
-requires = ["wheel", "setuptools"]
+requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "budoux"
+dynamic = ["version"]
+description = "BudouX is the successor of Budou"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [
+    {name = "Shuhei Iitsuka", email = "tushuhei@google.com"},
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+jaxcpu = [
+    "jax>=0.9.0; python_version >= '3.12'",
+]
+dev = [
+    "build",
+    "flake8",
+    "google-genai",
+    "isort",
+    "mypy>=1.0.0",
+    "pydantic",
+    "pytest",
+    "regex",
+    "toml",
+    "twine",
+    "types-regex",
+    "types-setuptools",
+    "yapf",
+    "jax>=0.9.0; python_version >= '3.12'",
+]
+
+[project.scripts]
+budoux = "budoux.main:main"
+
+[tool.setuptools.dynamic]
+version = {attr = "budoux.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["budoux*"]
+
+[tool.setuptools.package-data]
+budoux = ["models/*.json", "skip_nodes.json", "py.typed"]
+
+[dependency-groups]
+dev = [
+    "budoux[dev]",
+]
+
+[tool.yapf]
+based_on_style = "yapf"
+
+
+[tool.mypy]
+python_version = "3.12"
+pretty = true
+strict = true
+allow_untyped_calls = true

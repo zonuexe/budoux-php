@@ -20,7 +20,10 @@ import tempfile
 import typing
 import unittest
 
-from jax import numpy as jnp
+import pytest
+
+pytest.importorskip("jax")
+from jax import numpy as jnp  # noqa: E402
 
 # module hack
 LIB_PATH = os.path.join(os.path.dirname(__file__), '..', '..')
@@ -279,6 +282,15 @@ class TestExtractFeatures(unittest.TestCase):
                '-1\tbaz\tqux\n'))
     result = train.extract_features(entries_file_path, 1)
     self.assertEqual(result, ['foo', 'bar', 'baz'])
+
+  def test_with_weighted_entries(self) -> None:
+    entries_file_path = tempfile.NamedTemporaryFile().name
+    with open(entries_file_path, 'w') as f:
+      f.write(('2\tfoo\n'
+               '-3\tbar\n'
+               '1\tbaz\n'))
+    result = train.extract_features(entries_file_path, 1)
+    self.assertEqual(result, ['bar', 'foo'])
 
 
 class TestLoadDataset(unittest.TestCase):

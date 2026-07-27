@@ -23,7 +23,7 @@ from typing import NamedTuple
 import jax
 import jax.numpy as jnp
 
-EPS: float = jnp.finfo(float).eps
+EPS = float(jnp.finfo(float).eps)
 DEFAULT_OUTPUT_NAME = 'weights.txt'
 DEFAULT_LOG_NAME = 'train.log'
 DEFAULT_FEATURE_THRES = 10
@@ -62,7 +62,7 @@ def extract_features(data_path: str, thres: int) -> typing.List[str]:
   Args:
     data_path (str): The path to the encoded data file that contains the
       features to be extracted, which is typically a training data file.
-    thres (int): A threshold to filter out features  whose number of occurrences
+    thres (int): A threshold to filter out features whose scaled number of occurrences
       does not exceed the threshold.
 
   Returns:
@@ -74,7 +74,9 @@ def extract_features(data_path: str, thres: int) -> typing.List[str]:
       cols = row.strip().split('\t')
       if len(cols) < 2:
         continue
-      counter.update(cols[1:])
+      scale = abs(int(cols[0]))
+      for feature in cols[1:]:
+        counter[feature] += scale
   return [item[0] for item in counter.most_common() if item[1] > thres]
 
 
@@ -210,7 +212,7 @@ def update(w: jax.Array, scores: jax.Array, rows: jax.Array, cols: jax.Array,
   """
   N = w.shape[0]
   M = scores.shape[0]
-  # This is quivalent to w.dot(Y[:, None] ^ X). Note that y ^ x = y + x - 2yx,
+  # This is equivalent to w.dot(Y[:, None] ^ X). Note that y ^ x = y + x - 2yx,
   # hence w.dot(y ^ x) = w.dot(y) - w(2y - 1).dot(x).
   # `segment_sum` is used to implement sparse matrix-friendly dot products.
   res = w.dot(Y) - jax.ops.segment_sum((w * (2 * Y - 1)).take(rows), cols, M)
