@@ -24,10 +24,12 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use function compact;
+use function count;
 use function explode;
 use function fgets;
 use function fgetcsv;
 use function fopen;
+use function is_string;
 use function strtr;
 
 #[CoversClass(Parser::class)]
@@ -56,7 +58,10 @@ class QualityTest extends TestCase
         $header = fgets($fp);
         assert($header === "# label	sentence\n");
 
-        while ([$label, $data] = fgetcsv($fp, 1024, "\t", '"', '\\')) {
+        while (($row = fgetcsv($fp, 1024, "\t", '"', '\\')) !== false) {
+            assert(count($row) >= 2);
+            [$label, $data] = $row;
+            assert(is_string($label) && is_string($data));
             $input = strtr($data, [self::SEP => '']);
             $expected = explode(self::SEP, $data);
             yield compact('label', 'input', 'expected');

@@ -115,8 +115,7 @@ zero-width space.
 If you have a custom model, you can use it as follows.
 
 ```php
-$model = json_decode(file_get_contents('/path/to/your/model.json'), true);
-$parser = Budoux\Parser::Parser(model)
+$parser = Budoux\Parser::loadByFileName('/path/to/your/model.json');
 ```
 
 A model file for BudouX is a JSON file that contains pairs of a feature and its score extracted by machine learning training.

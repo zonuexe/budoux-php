@@ -20,7 +20,6 @@ declare(strict_types=1);
 
 namespace Budoux;
 
-use function array_is_list;
 use function array_key_last;
 use function array_slice;
 use function count;
@@ -28,7 +27,6 @@ use function file_get_contents;
 use function implode;
 use function json_decode;
 use function mb_str_split;
-use function mb_strlen;
 use function strlen;
 
 /**
@@ -169,8 +167,6 @@ abstract class Parser
 
             $result[array_key_last($result)] .= $sentence[$i];
         }
-
-        assert(array_is_list($result));
 
         return $result;
     }
