@@ -101,12 +101,12 @@ You can also translate an HTML string to wrap phrases with non-breaking markup.
 The default parser uses zero-width space (U+200B) to separate phrases.
 
 ```php
-var_dump($parser->translate_html_string('今日は<b>とても天気</b>です。'));
+var_dump($parser->translateHTMLString('今日は<b>とても天気</b>です。'));
 # <span style="word-break: keep-all; overflow-wrap: anywhere;">今日は<b>\u200bとても\u200b天気</b>です。</span>
 ```
 
-> [!CAUTION]
-> The PHP port does ***not yet*** support HTML.
+HTML processing requires the PHP `dom` extension (`ext-dom`), which is listed
+under Composer `suggest`.
 
 Please note that separators are denoted as `\u200b` in the example above for
 illustrative purposes, but the actual output is an invisible string as it's a

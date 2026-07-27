@@ -10,6 +10,9 @@
         "phpstan/phpstan": "^2.2",
         "phpunit/phpunit": "^11.5"
     },
+    "suggest": {
+        "ext-dom": "Required for HTMLProcessor and Parser::translateHTMLString()"
+    },
     "autoload": {
         "psr-4": {
             "Budoux\\": "php"
