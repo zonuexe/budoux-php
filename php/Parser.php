@@ -170,4 +170,20 @@ abstract class Parser
 
         return $result;
     }
+
+    /**
+     * Translates an HTML string with phrases wrapped in no-breaking markup.
+     *
+     * Requires the {@code ext-dom} extension (Composer {@code suggest}).
+     *
+     * @param string $html an HTML string
+     * @return string the translated HTML string with no-breaking markup
+     */
+    public function translateHTMLString(string $html): string
+    {
+        $sentence = HTMLProcessor::getText($html);
+        $phrases = $this->parse($sentence);
+
+        return HTMLProcessor::resolve($phrases, $html, "\u{200B}");
+    }
 }
