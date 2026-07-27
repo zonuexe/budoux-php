@@ -54,4 +54,33 @@ class ParserTest extends TestCase
         $parser = Parser::loadDefaultJapaneseParser();
         $this->assertSame([" 1  \n  2 "], $parser->parse(" 1  \n  2 "));
     }
+
+    public function testTranslateHTMLString(): void
+    {
+        $model = [
+            'UW4' => [
+                'a' => 100,
+            ],
+        ];
+        $parser = new Parser\File($model);
+        $html = '<a href="http://example.com">xyza</a>bc';
+        $result = $parser->translateHTMLString($html);
+        $this->assertSame(
+            '<span style="word-break: keep-all; overflow-wrap: anywhere;"><a href="http://example.com">xyz' . "\u{200B}" . 'a</a>bc</span>',
+            $result,
+        );
+    }
+
+    public function testTranslateHTMLStringJapanese(): void
+    {
+        $parser = Parser::loadDefaultJapaneseParser();
+        $result = $parser->translateHTMLString('今日は<b>とても天気</b>です。');
+        $zwsp = "\u{200B}";
+        $this->assertSame(
+            '<span style="word-break: keep-all; overflow-wrap: anywhere;">'
+            . '今日は<b>' . $zwsp . 'とても' . $zwsp . '天気</b>です。'
+            . '</span>',
+            $result,
+        );
+    }
 }
