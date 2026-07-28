@@ -9,10 +9,13 @@ use Budoux\Parser;
 use function array_map;
 use function array_sum;
 
+/**
+ * @phpstan-import-type Model from Parser
+ */
 final class File extends Parser
 {
     /**
-     * @param array<string, array<string, int>> $model
+     * @param Model $model
      */
     public function __construct(
         private array $model,
@@ -24,8 +27,11 @@ final class File extends Parser
         return array_sum(array_map(array_sum(...), $this->model));
     }
 
-    protected function getScore(string $featureKey, string $sequence): int
+    /**
+     * @return Model
+     */
+    protected function getModel(): array
     {
-        return $this->model[$featureKey][$sequence] ?? 0;
+        return $this->model;
     }
 }

@@ -31,3 +31,6 @@ weights.txt
 # PHP related files
 .phpunit.cache/
 vendor/
+
+# Local profiling captures
+tmp-reli-out/

@@ -20,11 +20,8 @@ declare(strict_types=1);
 
 namespace Budoux;
 
-use function array_key_last;
-use function array_slice;
 use function count;
 use function file_get_contents;
-use function implode;
 use function json_decode;
 use function mb_str_split;
 use function strlen;
@@ -41,6 +38,22 @@ use function strlen;
  *
  *     $parser = Parser::loadDefaultJapaneseParser();
  *
+ * @phpstan-type FeatureScores array<array-key, int>
+ * @phpstan-type Model array{
+ *     UW1?: FeatureScores,
+ *     UW2?: FeatureScores,
+ *     UW3?: FeatureScores,
+ *     UW4?: FeatureScores,
+ *     UW5?: FeatureScores,
+ *     UW6?: FeatureScores,
+ *     BW1?: FeatureScores,
+ *     BW2?: FeatureScores,
+ *     BW3?: FeatureScores,
+ *     TW1?: FeatureScores,
+ *     TW2?: FeatureScores,
+ *     TW3?: FeatureScores,
+ *     TW4?: FeatureScores,
+ * }
  */
 abstract class Parser
 {
@@ -87,7 +100,7 @@ abstract class Parser
         $content = file_get_contents($modelFileName);
         assert($content !== false);
 
-        /** @var array<string, array<string, int>> $model */
+        /** @var Model $model */
         $model = json_decode($content, true);
 
         return new Parser\File($model);
@@ -96,13 +109,27 @@ abstract class Parser
     /**
      * Gets the score for the specified feature of the given sequence.
      *
-     * @param string $featureKey the feature key to examine.
-     * @param string $sequence the sequence to look up the score.
+     * @param key-of<Model> $featureKey the feature key to examine.
+     * @param array-key $sequence the sequence to look up the score.
      * @return int the contribution score to support a phrase break.
      */
-    protected abstract function getScore(string $featureKey, string $sequence): int;
+    protected function getScore(string $featureKey, int|string $sequence): int
+    {
+        return $this->getModel()[$featureKey][$sequence] ?? 0;
+    }
 
     protected abstract function getTotalScore(): int;
+
+    /**
+     * Feature maps for the active model (UW1–UW6, BW1–BW3, TW1–TW4 → score).
+     *
+     * Cached as locals in {@see parse()} (same idea as the Java Parser).
+     * Each feature group is optional. Sequence keys are array-key because pure
+     * digit characters become int keys under PHP array semantics.
+     *
+     * @return Model
+     */
+    protected abstract function getModel(): array;
 
     /**
      * Parses a sentence into phrases.
@@ -122,53 +149,81 @@ abstract class Parser
         $result = [
             $sentence[0],
         ];
+        $resultIndex = 0;
 
         $totalScore = $this->getTotalScore();
         $length = count($sentence);
 
+        // Resolve feature maps once (Java caches Map locals the same way).
+        $model = $this->getModel();
+        $uw1 = $model['UW1'] ?? null;
+        $uw2 = $model['UW2'] ?? null;
+        $uw3 = $model['UW3'] ?? null;
+        $uw4 = $model['UW4'] ?? null;
+        $uw5 = $model['UW5'] ?? null;
+        $uw6 = $model['UW6'] ?? null;
+        $bw1 = $model['BW1'] ?? null;
+        $bw2 = $model['BW2'] ?? null;
+        $bw3 = $model['BW3'] ?? null;
+        $tw1 = $model['TW1'] ?? null;
+        $tw2 = $model['TW2'] ?? null;
+        $tw3 = $model['TW3'] ?? null;
+        $tw4 = $model['TW4'] ?? null;
+
         for ($i = 1; $i < $length; $i++) {
             $score = -$totalScore;
-            if ($i - 2 > 0) {
-                $score += 2 * $this->getScore("UW1", $sentence[$i - 3]);
+            if ($i - 2 > 0 && $uw1 !== null) {
+                $score += 2 * ($uw1[$sentence[$i - 3]] ?? 0);
             }
-            if ($i - 1 > 0) {
-                $score += 2 * $this->getScore("UW2", $sentence[$i - 2]);
+            if ($i - 1 > 0 && $uw2 !== null) {
+                $score += 2 * ($uw2[$sentence[$i - 2]] ?? 0);
             }
-            $score += 2 * $this->getScore("UW3", $sentence[$i - 1]);
-            $score += 2 * $this->getScore("UW4", $sentence[$i]);
-            if ($i + 1 < $length) {
-                $score += 2 * $this->getScore("UW5", $sentence[$i + 1]);
+            if ($uw3 !== null) {
+                $score += 2 * ($uw3[$sentence[$i - 1]] ?? 0);
             }
-            if ($i + 2 < $length) {
-                $score += 2 * $this->getScore("UW6", $sentence[$i + 2]);
+            if ($uw4 !== null) {
+                $score += 2 * ($uw4[$sentence[$i]] ?? 0);
             }
-            if ($i > 1) {
-                $score += 2 * $this->getScore("BW1", implode(array_slice($sentence, $i - 2, 2)));
+            if ($i + 1 < $length && $uw5 !== null) {
+                $score += 2 * ($uw5[$sentence[$i + 1]] ?? 0);
             }
-            $score += 2 * $this->getScore("BW2", implode(array_slice($sentence, $i - 1, 2)));
-            if ($i + 1 < $length) {
-                $score += 2 * $this->getScore("BW3", implode(array_slice($sentence, $i, 2)));
+            if ($i + 2 < $length && $uw6 !== null) {
+                $score += 2 * ($uw6[$sentence[$i + 2]] ?? 0);
             }
-            if ($i - 2 > 0) {
-                $score += 2 * $this->getScore("TW1", implode(array_slice($sentence, $i - 3, 3)));
+            // Prefer direct concatenation over array_slice()+implode() — the latter
+            // dominated samples under reli (array_slice ~9% self-time).
+            if ($i > 1 && $bw1 !== null) {
+                $score += 2 * ($bw1[$sentence[$i - 2] . $sentence[$i - 1]] ?? 0);
             }
-            if ($i - 1 > 0) {
-                $score += 2 * $this->getScore("TW2", implode(array_slice($sentence, $i - 2, 3)));
+            if ($bw2 !== null) {
+                $score += 2 * ($bw2[$sentence[$i - 1] . $sentence[$i]] ?? 0);
             }
-            if ($i + 1 < $length) {
-                $score += 2 * $this->getScore("TW3", implode(array_slice($sentence, $i - 1, 3)));
+            if ($i + 1 < $length && $bw3 !== null) {
+                $score += 2 * ($bw3[$sentence[$i] . $sentence[$i + 1]] ?? 0);
             }
-            if ($i + 2 < $length) {
-                $score += 2 * $this->getScore("TW4", implode(array_slice($sentence, $i, 3)));
+            if ($i - 2 > 0 && $tw1 !== null) {
+                $score += 2 * ($tw1[$sentence[$i - 3] . $sentence[$i - 2] . $sentence[$i - 1]] ?? 0);
+            }
+            if ($i - 1 > 0 && $tw2 !== null) {
+                $score += 2 * ($tw2[$sentence[$i - 2] . $sentence[$i - 1] . $sentence[$i]] ?? 0);
+            }
+            if ($i + 1 < $length && $tw3 !== null) {
+                $score += 2 * ($tw3[$sentence[$i - 1] . $sentence[$i] . $sentence[$i + 1]] ?? 0);
+            }
+            if ($i + 2 < $length && $tw4 !== null) {
+                $score += 2 * ($tw4[$sentence[$i] . $sentence[$i + 1] . $sentence[$i + 2]] ?? 0);
             }
             if ($score > 0) {
                 $result[] = '';
+                $resultIndex++;
             }
 
-            $result[array_key_last($result)] .= $sentence[$i];
+            $result[$resultIndex] .= $sentence[$i];
         }
 
-        return $result;
+        // $resultIndex only advances when appending, so keys stay 0..n; array_values
+        // keeps the phpdoc list<> contract for PHPStan.
+        return array_values($result);
     }
 
     /**
