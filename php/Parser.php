@@ -23,8 +23,8 @@ namespace Budoux;
 use function array_key_last;
 use function array_slice;
 use function count;
-use function file_get_contents;
 use function implode;
+use function file_get_contents;
 use function json_decode;
 use function mb_str_split;
 use function strlen;
@@ -41,6 +41,22 @@ use function strlen;
  *
  *     $parser = Parser::loadDefaultJapaneseParser();
  *
+ * @phpstan-type FeatureScores array<array-key, int>
+ * @phpstan-type Model array{
+ *     UW1?: FeatureScores,
+ *     UW2?: FeatureScores,
+ *     UW3?: FeatureScores,
+ *     UW4?: FeatureScores,
+ *     UW5?: FeatureScores,
+ *     UW6?: FeatureScores,
+ *     BW1?: FeatureScores,
+ *     BW2?: FeatureScores,
+ *     BW3?: FeatureScores,
+ *     TW1?: FeatureScores,
+ *     TW2?: FeatureScores,
+ *     TW3?: FeatureScores,
+ *     TW4?: FeatureScores,
+ * }
  */
 abstract class Parser
 {
@@ -87,7 +103,7 @@ abstract class Parser
         $content = file_get_contents($modelFileName);
         assert($content !== false);
 
-        /** @var array<string, array<string, int>> $model */
+        /** @var Model $model */
         $model = json_decode($content, true);
 
         return new Parser\File($model);
@@ -96,13 +112,27 @@ abstract class Parser
     /**
      * Gets the score for the specified feature of the given sequence.
      *
-     * @param string $featureKey the feature key to examine.
-     * @param string $sequence the sequence to look up the score.
+     * @param key-of<Model> $featureKey the feature key to examine.
+     * @param array-key $sequence the sequence to look up the score.
      * @return int the contribution score to support a phrase break.
      */
-    protected abstract function getScore(string $featureKey, string $sequence): int;
+    protected function getScore(string $featureKey, int|string $sequence): int
+    {
+        return $this->getModel()[$featureKey][$sequence] ?? 0;
+    }
 
     protected abstract function getTotalScore(): int;
+
+    /**
+     * Feature maps for the active model (UW1–UW6, BW1–BW3, TW1–TW4 → score).
+     *
+     * Cached as locals in {@see parse()} (same idea as the Java Parser).
+     * Each feature group is optional. Sequence keys are array-key because pure
+     * digit characters become int keys under PHP array semantics.
+     *
+     * @return Model
+     */
+    protected abstract function getModel(): array;
 
     /**
      * Parses a sentence into phrases.

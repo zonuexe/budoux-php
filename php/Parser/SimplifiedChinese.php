@@ -29,9 +29,9 @@ final class SimplifiedChinese extends Parser
         return 249;
     }
 
-    protected function getScore(string $featureKey, string $sequence): int
+    protected function getModel(): array
     {
-        return self::MODEL[$featureKey][$sequence] ?? 0;
+        return self::MODEL;
     }
 
 private const MODEL = [

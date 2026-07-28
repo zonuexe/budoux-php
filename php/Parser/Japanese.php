@@ -29,9 +29,9 @@ final class Japanese extends Parser
         return 2958;
     }
 
-    protected function getScore(string $featureKey, string $sequence): int
+    protected function getModel(): array
     {
-        return self::MODEL[$featureKey][$sequence] ?? 0;
+        return self::MODEL;
     }
 
 private const MODEL = [

@@ -56,9 +56,9 @@ final class <?= $class ?> extends Parser
         return <?= $totalScore ?>;
     }
 
-    protected function getScore(string $featureKey, string $sequence): int
+    protected function getModel(): array
     {
-        return self::MODEL[$featureKey][$sequence] ?? 0;
+        return self::MODEL;
     }
 
 private const MODEL = [
